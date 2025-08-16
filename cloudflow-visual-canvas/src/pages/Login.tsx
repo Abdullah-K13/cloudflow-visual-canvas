@@ -8,29 +8,86 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Cloud, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Header from "@/components/layout/Header";
+import Cookies from "js-cookie";
+
+type LoginResponse = {
+  success: boolean;
+  id: number;
+  api_key: string;
+  name: string;
+};
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     rememberMe: false
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle login logic here
-    console.log("Login attempt:", formData);
-  };
-
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("http://localhost:8000/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // If your API needs cookies or auth headers, add credentials: 'include'
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      // Handle non-2xx quickly:
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(txt || `Login failed with ${res.status}`);
+      }
+
+      const data: LoginResponse = await res.json();
+      console.log("Login successful:", data);
+
+      if (!data.success || !data.api_key || !data.id) {
+        throw new Error("Invalid credentials or malformed response");
+      }
+
+      // NOTE on localhost: do NOT set the 'domain' attribute; most browsers reject Domain=localhost.
+      // Cookies are host-only and will work across ports (8080 → 3000).
+      const cookieOpts: Cookies.CookieAttributes = {
+        path: "/",                 // available across the whole site
+        sameSite: "lax",           // safe default that still sends the cookie on top-level navigation
+        // secure: true,           // enable when you serve over HTTPS
+        ...(formData.rememberMe ? { expires: 7 } : {}), // 7 days if Remember me, otherwise session cookie
+      };
+
+      Cookies.set("user_id", String(data.id), cookieOpts);
+      Cookies.set("api_key", data.api_key, cookieOpts);
+      Cookies.set("name", data.name, cookieOpts);
+
+
+      // Redirect to your Next.js app
+      window.location.href = "http://localhost:3000";
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <div className="flex items-center justify-center py-12 px-4">
         <div className="w-full max-w-md">
           <Card className="shadow-custom border-border">
@@ -45,7 +102,7 @@ const Login = () => {
                 Sign in to your CloudFlow account to continue building
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Email Field */}
@@ -92,26 +149,33 @@ const Login = () => {
                 {/* Remember Me & Forgot Password */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <Checkbox 
+                    <Checkbox
                       id="remember"
                       checked={formData.rememberMe}
-                      onCheckedChange={(checked) => handleInputChange("rememberMe", checked)}
+                      onCheckedChange={(checked) => handleInputChange("rememberMe", Boolean(checked))}
                     />
                     <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
                       Remember me
                     </Label>
                   </div>
-                  <Link 
-                    to="/forgot-password" 
+                  <Link
+                    to="/forgot-password"
                     className="text-sm text-accent hover:text-accent-hover transition-smooth"
                   >
                     Forgot password?
                   </Link>
                 </div>
 
+                {/* Error */}
+                {errorMsg && (
+                  <div className="text-sm text-red-600 border border-red-200 rounded-md p-2 bg-red-50">
+                    {errorMsg}
+                  </div>
+                )}
+
                 {/* Sign In Button */}
-                <Button type="submit" className="w-full btn-primary">
-                  Sign In
+                <Button type="submit" className="w-full btn-primary" disabled={loading}>
+                  {loading ? "Signing in..." : "Sign In"}
                 </Button>
               </form>
 
@@ -127,7 +191,7 @@ const Login = () => {
                 </div>
               </div>
 
-              {/* Social Login Buttons */}
+              {/* Social Login Buttons (placeholders) */}
               <div className="space-y-3">
                 <Button variant="outline" className="w-full" type="button">
                   <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
@@ -138,7 +202,7 @@ const Login = () => {
                   </svg>
                   Continue with Google
                 </Button>
-                
+
                 <Button variant="outline" className="w-full" type="button">
                   <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
                     <path fill="currentColor" d="M23.04 10.93c0-1.03-.09-2.02-.26-2.98H12v5.64h6.16c-.27 1.43-1.07 2.64-2.28 3.46v2.87h3.69c2.16-1.99 3.41-4.92 3.41-8.38l.06-.61z"/>

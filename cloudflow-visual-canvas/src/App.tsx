@@ -11,6 +11,8 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Documentation from "./pages/Documentation";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import Help from "./pages/Help";
+
 
 const queryClient = new QueryClient();
 
@@ -29,6 +31,8 @@ const App = () => (
           <Route path="/docs" element={<Documentation />} />
           <Route path="/docs/*" element={<Documentation />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/help" element={<Help />} />
+
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
